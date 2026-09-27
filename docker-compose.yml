@@ -1,0 +1,96 @@
+services:
+  # ─── Base de Datos PostgreSQL ──────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: chat_gde_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-chat_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-chat_secret_2024}
+      POSTGRES_DB: ${POSTGRES_DB:-chat_gde}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-chat_user} -d ${POSTGRES_DB:-chat_gde}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - chat_network
+
+  # ─── Backend (Node.js + Express + Socket.io) ──────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: chat_gde_backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgresql://${POSTGRES_USER:-chat_user}:${POSTGRES_PASSWORD:-chat_secret_2024}@postgres:5432/${POSTGRES_DB:-chat_gde}?schema=public
+      JWT_SECRET: ${JWT_SECRET:-chat_gde_jwt_secret_change_in_prod_2024_xk9p}
+      JWT_EXPIRES_IN: 7d
+      FRONTEND_URL: http://localhost
+      MAX_FILE_SIZE: 20971520
+      # AWS S3 (opcional - si no se configura, el upload de archivos no funcionará)
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-}
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - chat_network
+    volumes:
+      - uploads_data:/app/uploads
+
+  # ─── Frontend (Nginx sirviendo el build de Vite) ───────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: /api
+        VITE_SOCKET_URL: ""
+    container_name: chat_gde_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - chat_network
+
+  # ─── pgAdmin (interfaz web para la DB) ────────────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: chat_gde_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@gde.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - chat_network
+    profiles:
+      - tools  # Solo se levanta con: docker compose --profile tools up
+
+volumes:
+  postgres_data:
+    driver: local
+  uploads_data:
+    driver: local
+
+networks:
+  chat_network:
+    driver: bridge

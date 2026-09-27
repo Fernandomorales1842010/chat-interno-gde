@@ -1,0 +1,48 @@
+{
+  "name": "chat-interno-gde-backend",
+  "version": "1.0.0",
+  "description": "Backend del Chat Interno del Centro de Distribución GDE",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js",
+    "db:migrate": "npx prisma migrate dev",
+    "db:push": "npx prisma db push",
+    "db:seed": "node prisma/seed.js",
+    "db:studio": "npx prisma studio",
+    "db:generate": "npx prisma generate",
+    "db:reset": "npx prisma migrate reset --force && node prisma/seed.js"
+  },
+  "keywords": [
+    "chat",
+    "websocket",
+    "distribucion"
+  ],
+  "author": "GDE",
+  "license": "ISC",
+  "type": "commonjs",
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1141.0",
+    "@prisma/client": "^5.22.0",
+    "bcryptjs": "^3.0.3",
+    "compression": "^1.8.2",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.4",
+    "express": "^5.2.1",
+    "express-validator": "^7.3.2",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.12.1",
+    "multer": "^2.4.0",
+    "multer-s3": "^3.0.1",
+    "socket.io": "^4.8.4",
+    "uuid": "^14.0.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14",
+    "prisma": "^5.22.0"
+  }
+}
