@@ -9,8 +9,13 @@ export default function GroupDetailsDrawer({ conversation, currentUserId, onClos
   const [showAddMember, setShowAddMember] = useState(false);
   const [availableUsers, setAvailableUsers] = useState([]);
   const [addingUserId, setAddingUserId] = useState(null);
-  const [removingUserId, setRemovingUserId] = useState(null);
-  const { fetchConversations } = useChatStore();
+  
+  // Para eliminación en lote
+  const [selectedForRemoval, setSelectedForRemoval] = useState(new Set());
+  const [isRemoving, setIsRemoving] = useState(false);
+  const [isDeletingGroup, setIsDeletingGroup] = useState(false);
+  
+  const { fetchConversations, setActiveConversation } = useChatStore();
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -57,16 +62,44 @@ export default function GroupDetailsDrawer({ conversation, currentUserId, onClos
     }
   };
 
-  const handleRemoveMember = async (userId, fullName) => {
-    if (!window.confirm(`¿Eliminar a "${fullName}" del grupo?`)) return;
-    setRemovingUserId(userId);
+  const handleToggleSelectRemoval = (userId) => {
+    setSelectedForRemoval(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(userId)) newSet.delete(userId);
+      else newSet.add(userId);
+      return newSet;
+    });
+  };
+
+  const handleBatchRemove = async () => {
+    if (selectedForRemoval.size === 0) return;
+    if (!window.confirm(`¿Eliminar a los ${selectedForRemoval.size} miembros seleccionados?`)) return;
+    
+    setIsRemoving(true);
     try {
-      await api.delete(`/conversations/${conversation.id}/members/${userId}`);
+      await api.post(`/conversations/${conversation.id}/members/remove`, {
+        userIds: Array.from(selectedForRemoval)
+      });
       await fetchConversations();
+      setSelectedForRemoval(new Set()); // limpiar selección
     } catch (err) {
-      alert(err.response?.data?.message || 'Error al eliminar miembro');
+      alert(err.response?.data?.message || 'Error al eliminar miembros');
     } finally {
-      setRemovingUserId(null);
+      setIsRemoving(false);
+    }
+  };
+
+  const handleDeleteGroup = async () => {
+    if (!window.confirm('¿Estás seguro de eliminar este grupo permanentemente? Se borrarán todos los mensajes y la acción no se puede deshacer.')) return;
+    setIsDeletingGroup(true);
+    try {
+      await api.delete(`/conversations/${conversation.id}`);
+      setActiveConversation(null); // Deseleccionar
+      await fetchConversations();
+      onClose(); // Cerrar drawer
+    } catch (err) {
+      alert(err.response?.data?.message || 'Error al eliminar el grupo');
+      setIsDeletingGroup(false);
     }
   };
 
@@ -103,6 +136,18 @@ export default function GroupDetailsDrawer({ conversation, currentUserId, onClos
                 <span className="system-group-badge">📢 Grupo Oficial</span>
               )}
             </div>
+            
+            {/* Botón para eliminar grupo completo */}
+            {isAdmin && !conversation.isSystem && (
+              <button 
+                className="btn-action delete" 
+                style={{ marginTop: 16, width: '100%' }}
+                onClick={handleDeleteGroup}
+                disabled={isDeletingGroup}
+              >
+                {isDeletingGroup ? 'Eliminando...' : '🗑️ Eliminar Grupo Completo'}
+              </button>
+            )}
           </div>
 
           <hr className="drawer-divider" />
@@ -113,7 +158,10 @@ export default function GroupDetailsDrawer({ conversation, currentUserId, onClos
               <button
                 className="btn-primary"
                 style={{ flex: 1, fontSize: 13, padding: '8px 12px' }}
-                onClick={() => setShowAddMember(!showAddMember)}
+                onClick={() => {
+                  setShowAddMember(!showAddMember);
+                  setSelectedForRemoval(new Set()); // Limpiar selección si cambia vista
+                }}
               >
                 {showAddMember ? '← Volver a miembros' : '+ Agregar Miembro'}
               </button>
@@ -179,8 +227,18 @@ export default function GroupDetailsDrawer({ conversation, currentUserId, onClos
 
               {/* Lista de Participantes */}
               <div className="drawer-participants-section">
-                <div className="drawer-section-title">
-                  MIEMBROS ({filteredParticipants.length})
+                <div className="drawer-section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>MIEMBROS ({filteredParticipants.length})</span>
+                  {isAdmin && selectedForRemoval.size > 0 && (
+                    <button 
+                      className="btn-action delete"
+                      style={{ fontSize: 11, padding: '4px 8px' }}
+                      onClick={handleBatchRemove}
+                      disabled={isRemoving}
+                    >
+                      {isRemoving ? '...' : `🗑️ Eliminar (${selectedForRemoval.size})`}
+                    </button>
+                  )}
                 </div>
 
                 <div className="drawer-participants-list">
@@ -193,15 +251,30 @@ export default function GroupDetailsDrawer({ conversation, currentUserId, onClos
                       const isGroupAdmin = p.role === 'ADMIN';
                       const isYou = (p.userId || p.user?.id) === currentUserId;
                       const memberId = p.userId || p.user?.id;
+                      const isSelected = selectedForRemoval.has(memberId);
 
                       return (
-                        <div key={p.id || memberId} className="participant-item">
+                        <div key={p.id || memberId} className="participant-item" style={{ cursor: isAdmin && !isYou && !conversation.isSystem ? 'pointer' : 'default', background: isSelected ? 'var(--color-bg-active)' : 'transparent' }} onClick={() => {
+                          if (isAdmin && !isYou && !conversation.isSystem) {
+                            handleToggleSelectRemoval(memberId);
+                          }
+                        }}>
+                          {isAdmin && !isYou && !conversation.isSystem && (
+                            <div style={{ marginRight: 8 }}>
+                              <input 
+                                type="checkbox" 
+                                checked={isSelected}
+                                onChange={() => {}} 
+                                style={{ pointerEvents: 'none' }} 
+                              />
+                            </div>
+                          )}
                           <Avatar 
                             user={p.user} 
                             showOnline 
                             isOnline={p.user?.isOnline} 
                           />
-                          <div className="participant-info">
+                          <div className="participant-info" style={{ marginLeft: (!isAdmin || isYou || conversation.isSystem) ? 0 : 4 }}>
                             <div className="participant-name">
                               {p.user?.fullName} {isYou && <span className="you-tag">(Tú)</span>}
                             </div>
@@ -218,17 +291,6 @@ export default function GroupDetailsDrawer({ conversation, currentUserId, onClos
                             <span className={`role-badge ${p.user?.role}`}>
                               {getRoleLabel(p.user?.role)}
                             </span>
-                            {isAdmin && !isYou && !conversation.isSystem && (
-                              <button
-                                className="btn-action delete"
-                                style={{ fontSize: 11, padding: '2px 6px', marginLeft: 4 }}
-                                onClick={() => handleRemoveMember(memberId, p.user?.fullName)}
-                                disabled={removingUserId === memberId}
-                                title="Eliminar del grupo"
-                              >
-                                {removingUserId === memberId ? '...' : '✕'}
-                              </button>
-                            )}
                           </div>
                         </div>
                       );

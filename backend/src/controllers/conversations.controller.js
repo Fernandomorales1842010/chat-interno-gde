@@ -404,13 +404,18 @@ const addMember = async (req, res) => {
 };
 
 /**
- * DELETE /api/conversations/:id/members/:userId
- * Elimina un miembro de un grupo
+ * POST /api/conversations/:id/members/remove
+ * Elimina múltiples miembros de un grupo
  */
-const removeMember = async (req, res) => {
+const removeMembers = async (req, res) => {
   try {
-    const { id, userId: targetUserId } = req.params;
+    const { id } = req.params;
+    const { userIds } = req.body;
     const userId = req.user.id;
+
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'Se requiere un arreglo de userIds' });
+    }
 
     const conversation = await prisma.conversation.findFirst({
       where: { id, type: 'GROUP' },
@@ -428,18 +433,64 @@ const removeMember = async (req, res) => {
     }
 
     // No puede eliminarse a sí mismo
-    if (targetUserId === userId) {
-      return res.status(400).json({ success: false, message: 'No puedes eliminarte a ti mismo del grupo' });
+    if (userIds.includes(userId)) {
+      return res.status(400).json({ success: false, message: 'No puedes eliminarte a ti mismo del grupo en esta acción' });
     }
 
     await prisma.conversationParticipant.deleteMany({
-      where: { conversationId: id, userId: targetUserId }
+      where: { 
+        conversationId: id, 
+        userId: { in: userIds } 
+      }
     });
 
-    res.json({ success: true, message: 'Miembro eliminado del grupo' });
+    res.json({ success: true, message: 'Miembros eliminados del grupo' });
   } catch (error) {
-    console.error('RemoveMember error:', error);
-    res.status(500).json({ success: false, message: 'Error al eliminar miembro' });
+    console.error('RemoveMembers error:', error);
+    res.status(500).json({ success: false, message: 'Error al eliminar miembros' });
+  }
+};
+
+/**
+ * DELETE /api/conversations/:id
+ * Elimina un grupo completo
+ */
+const deleteGroup = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const conversation = await prisma.conversation.findFirst({
+      where: { id, type: 'GROUP' },
+      include: { participants: true }
+    });
+
+    if (!conversation) {
+      return res.status(404).json({ success: false, message: 'Grupo no encontrado' });
+    }
+
+    // Verificar permisos: solo admin del grupo o roles superiores
+    const userParticipant = conversation.participants.find(p => p.userId === userId);
+    if (!userParticipant || (userParticipant.role !== 'ADMIN' && !isAdminRole(req.user.role))) {
+      return res.status(403).json({ success: false, message: 'Solo los administradores del grupo pueden eliminarlo' });
+    }
+
+    if (conversation.isSystem) {
+      return res.status(403).json({ success: false, message: 'No puedes eliminar un grupo del sistema' });
+    }
+
+    // Usar transacción para limpiar mensajes y lecturas antes del grupo
+    await prisma.$transaction(async (tx) => {
+      await tx.messageRead.deleteMany({ where: { message: { conversationId: id } } });
+      await tx.message.deleteMany({ where: { conversationId: id } });
+      await tx.conversationParticipant.deleteMany({ where: { conversationId: id } });
+      await tx.conversation.delete({ where: { id } });
+    });
+
+    res.json({ success: true, message: 'Grupo eliminado permanentemente' });
+  } catch (error) {
+    console.error('DeleteGroup error:', error);
+    res.status(500).json({ success: false, message: 'Error al eliminar grupo' });
   }
 };
 
@@ -451,6 +502,7 @@ module.exports = {
   addParticipants,
   markAsRead,
   addMember,
-  removeMember
+  removeMembers,
+  deleteGroup
 };
 

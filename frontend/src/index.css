@@ -112,6 +112,7 @@ body {
 .app-layout {
   display: flex;
   height: 100vh;
+  height: 100dvh; /* Soporte para mobile browsers con barra de navegación dinámica */
   overflow: hidden;
 }
 
@@ -124,6 +125,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   transition: transform var(--transition-normal);
   z-index: 100;
@@ -390,6 +392,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   background: var(--color-bg-primary);
 }

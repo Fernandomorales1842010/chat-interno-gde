@@ -8,7 +8,8 @@ const {
   addParticipants,
   markAsRead,
   addMember,
-  removeMember
+  removeMembers,
+  deleteGroup
 } = require('../controllers/conversations.controller');
 const { authenticate } = require('../middleware/auth');
 
@@ -18,7 +19,8 @@ router.post('/direct', authenticate, getOrCreateDirect);
 router.post('/group', authenticate, createGroup);
 router.post('/:id/participants', authenticate, addParticipants);
 router.post('/:id/members', authenticate, addMember);
-router.delete('/:id/members/:userId', authenticate, removeMember);
+router.post('/:id/members/remove', authenticate, removeMembers);
+router.delete('/:id', authenticate, deleteGroup);
 router.put('/:id/read', authenticate, markAsRead);
 
 module.exports = router;
