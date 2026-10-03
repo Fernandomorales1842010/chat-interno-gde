@@ -3,6 +3,7 @@ import { getRoleLabel } from '../../utils/helpers';
 import Avatar from '../shared/Avatar';
 import api from '../../services/api';
 import useChatStore from '../../store/chatStore';
+import useAuthStore from '../../store/authStore';
 
 export default function GroupDetailsDrawer({ conversation, currentUserId, onClose }) {
   const [search, setSearch] = useState('');
@@ -16,6 +17,7 @@ export default function GroupDetailsDrawer({ conversation, currentUserId, onClos
   const [isDeletingGroup, setIsDeletingGroup] = useState(false);
   
   const { fetchConversations, setActiveConversation } = useChatStore();
+  const { user } = useAuthStore();
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -47,7 +49,9 @@ export default function GroupDetailsDrawer({ conversation, currentUserId, onClos
     return name.includes(q) || username.includes(q);
   });
 
-  const isAdmin = participants.find(p => (p.userId || p.user?.id) === currentUserId)?.role === 'ADMIN';
+  const isGroupAdmin = participants.find(p => (p.userId || p.user?.id) === currentUserId)?.role === 'ADMIN';
+  const isGlobalAdmin = ['ADMIN', 'IT', 'SUPERVISOR'].includes(user?.role);
+  const isAdmin = isGroupAdmin || isGlobalAdmin;
 
   const handleAddMember = async (userId) => {
     setAddingUserId(userId);
