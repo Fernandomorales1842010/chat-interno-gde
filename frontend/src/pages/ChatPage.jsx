@@ -1,53 +1,55 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Sidebar from '../components/sidebar/Sidebar';
 import ChatWindow from '../components/chat/ChatWindow';
 import useChatStore from '../store/chatStore';
 
 export default function ChatPage() {
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const { activeConversationId } = useChatStore();
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
-  // En mobile, mostrar sidebar cuando no hay conversación activa
+  // Detectar cambio de tamaño
   useEffect(() => {
-    const checkMobile = () => {
-      if (window.innerWidth <= 768 && !activeConversationId) {
-        setIsMobileOpen(true);
-      }
+    const handleResize = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      if (!mobile) setSidebarOpen(true);
     };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, [activeConversationId]);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
-  // Mostrar botón hamburguesa en mobile
+  // En mobile: mostrar sidebar cuando no hay conversación activa
   useEffect(() => {
-    const btn = document.getElementById('mobile-back-btn');
-    if (btn) {
-      btn.style.display = window.innerWidth <= 768 ? 'flex' : 'none';
-      btn.onclick = () => setIsMobileOpen(true);
+    if (isMobile) {
+      setSidebarOpen(!activeConversationId);
     }
-  }, [activeConversationId]);
+  }, [activeConversationId, isMobile]);
+
+  const handleCloseSidebar = useCallback(() => {
+    if (isMobile) setSidebarOpen(false);
+  }, [isMobile]);
+
+  const handleOpenSidebar = useCallback(() => {
+    setSidebarOpen(true);
+  }, []);
 
   return (
     <>
       {/* Overlay para cerrar sidebar en mobile */}
-      {isMobileOpen && (
+      {isMobile && sidebarOpen && activeConversationId && (
         <div 
-          style={{ 
-            position: 'fixed', inset: 0, 
-            background: 'rgba(0,0,0,0.5)', 
-            zIndex: 99 
-          }}
-          onClick={() => setIsMobileOpen(false)}
+          className="sidebar-overlay"
+          onClick={handleCloseSidebar}
         />
       )}
       
       <div className="app-layout">
         <Sidebar 
-          isMobileOpen={isMobileOpen}
-          onClose={() => setIsMobileOpen(false)}
+          isMobileOpen={sidebarOpen}
+          onClose={handleCloseSidebar}
         />
-        <ChatWindow />
+        <ChatWindow onOpenSidebar={handleOpenSidebar} />
       </div>
     </>
   );

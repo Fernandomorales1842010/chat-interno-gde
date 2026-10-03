@@ -1043,10 +1043,36 @@ body {
   to { transform: rotate(360deg); }
 }
 
+/* ── Responsive: Mobile Utilities ────────────────────────────────────────── */
+
+/* Botón hamburguesa - solo visible en mobile */
+.mobile-hamburger-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  border-radius: var(--border-radius-sm);
+  flex-shrink: 0;
+  transition: background var(--transition-fast);
+}
+
+.mobile-hamburger-btn:hover {
+  background: var(--color-bg-hover);
+}
+
+/* Overlay del sidebar en mobile */
+.sidebar-overlay {
+  display: none;
+}
+
 /* ── Responsive: Mobile (TC22 y teléfonos) ──────────────────────────────── */
 @media (max-width: 768px) {
   :root {
-    --sidebar-width: 100vw;
     font-size: 15px;
   }
 
@@ -1054,22 +1080,59 @@ body {
     position: relative;
   }
 
+  /* Sidebar en mobile: slide desde la izquierda */
   .sidebar {
     position: fixed;
     left: 0;
     top: 0;
+    bottom: 0;
+    width: 85vw;
+    max-width: 380px;
+    min-width: auto;
     transform: translateX(-100%);
-    width: 100%;
-    min-width: 100%;
+    z-index: 200;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .sidebar.mobile-open {
     transform: translateX(0);
-    box-shadow: var(--shadow-lg);
+    box-shadow: 4px 0 32px rgba(0, 0, 0, 0.6);
   }
 
+  /* Overlay oscuro detrás del sidebar */
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 199;
+    animation: fadeInOverlay 0.2s ease;
+  }
+
+  @keyframes fadeInOverlay {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  /* Hamburguesa visible en mobile */
+  .mobile-hamburger-btn {
+    display: flex;
+  }
+
+  /* Chat area ocupa todo */
   .chat-area {
     width: 100%;
+    min-width: 100%;
+  }
+
+  .empty-chat {
+    position: relative;
+  }
+
+  .empty-chat .mobile-hamburger-btn {
+    position: absolute;
+    top: 16px;
+    left: 16px;
   }
 
   .message-wrapper {
@@ -1083,8 +1146,8 @@ body {
   }
 
   .avatar {
-    width: 46px;
-    height: 46px;
+    width: 44px;
+    height: 44px;
   }
 
   .message-input-area {
@@ -1101,13 +1164,83 @@ body {
   }
 
   .icon-btn {
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
   }
 
   .chat-header {
     height: 58px;
-    padding: 0 12px;
+    padding: 0 8px;
+    gap: 6px;
+  }
+
+  .chat-header-name {
+    font-size: 14px;
+  }
+
+  .chat-header-status {
+    font-size: 11px;
+  }
+
+  /* Drawer de grupo en mobile: full width */
+  .group-drawer {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Mention autocomplete en mobile */
+  .mention-autocomplete-menu {
+    bottom: 100%;
+    left: 0;
+    right: 0;
+    max-height: 200px;
+  }
+
+  /* Admin page responsive */
+  .admin-header {
+    padding: 16px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .admin-header-title h1 {
+    font-size: 18px;
+  }
+
+  .admin-nav-bar {
+    padding: 10px 12px;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .admin-filters {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .admin-table-container {
+    overflow-x: auto;
+  }
+
+  .admin-table {
+    min-width: 600px;
+  }
+
+  .teams-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .modal-content {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    margin: 16px;
+  }
+}
+
+/* Tablet breakpoint */
+@media (min-width: 769px) and (max-width: 1024px) {
+  :root {
+    --sidebar-width: 280px;
   }
 }
 

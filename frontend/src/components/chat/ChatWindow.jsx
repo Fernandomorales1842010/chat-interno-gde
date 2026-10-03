@@ -8,7 +8,7 @@ import ChatHeader from './ChatHeader';
 import MediaModalViewer from './MediaModalViewer';
 import api from '../../services/api';
 
-export default function ChatWindow() {
+export default function ChatWindow({ onOpenSidebar }) {
   const { user } = useAuthStore();
   const { 
     activeConversationId, 
@@ -38,7 +38,11 @@ export default function ChatWindow() {
 
   // Auto-scroll al último mensaje
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (conversationMessages.length > 0) {
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
   }, [conversationMessages.length]);
 
   const handleSendMessage = useCallback(async (content, type = 'TEXT') => {
@@ -49,20 +53,6 @@ export default function ChatWindow() {
       content: content.trim(),
       type,
     };
-
-    // Actualización optimista inmediata en la UI (ultra-rápida)
-    if (!pendingFile && user) {
-      const optimisticMsg = {
-        id: `temp-${Date.now()}-${Math.random()}`,
-        conversationId: activeConversationId,
-        senderId: user.id,
-        sender: user,
-        content: content.trim(),
-        type,
-        createdAt: new Date().toISOString(),
-      };
-      addOptimisticMessage(optimisticMsg);
-    }
 
     // Si hay archivo pendiente, subir primero
     if (pendingFile) {
@@ -98,6 +88,18 @@ export default function ChatWindow() {
     return (
       <div className="chat-area">
         <div className="empty-chat">
+          {/* Botón hamburguesa en mobile cuando no hay conversación */}
+          <button 
+            className="mobile-hamburger-btn"
+            onClick={onOpenSidebar}
+            aria-label="Abrir menú"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="3" y1="6" x2="21" y2="6"/>
+              <line x1="3" y1="12" x2="21" y2="12"/>
+              <line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
           <div className="empty-chat-icon">💬</div>
           <h3>Selecciona una conversación</h3>
           <p>Elige un chat de la lista para comenzar a comunicarte</p>
@@ -108,7 +110,11 @@ export default function ChatWindow() {
 
   return (
     <div className="chat-area">
-      <ChatHeader conversation={activeConversation} currentUserId={user?.id} />
+      <ChatHeader 
+        conversation={activeConversation} 
+        currentUserId={user?.id} 
+        onOpenSidebar={onOpenSidebar}
+      />
       
       <MessageList 
         messages={conversationMessages}

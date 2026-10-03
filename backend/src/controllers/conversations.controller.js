@@ -357,11 +357,100 @@ const markAsRead = async (req, res) => {
   }
 };
 
+/**
+ * POST /api/conversations/:id/members
+ * Agrega un miembro individual a un grupo
+ */
+const addMember = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId: targetUserId } = req.body;
+    const userId = req.user.id;
+
+    if (!targetUserId) {
+      return res.status(400).json({ success: false, message: 'userId es requerido' });
+    }
+
+    const conversation = await prisma.conversation.findFirst({
+      where: { id, type: 'GROUP' },
+      include: { participants: true }
+    });
+
+    if (!conversation) {
+      return res.status(404).json({ success: false, message: 'Grupo no encontrado' });
+    }
+
+    // Verificar que el solicitante es admin del grupo o admin del sistema
+    const userParticipant = conversation.participants.find(p => p.userId === userId);
+    if (!userParticipant || (userParticipant.role !== 'ADMIN' && !isAdminRole(req.user.role))) {
+      return res.status(403).json({ success: false, message: 'Solo los administradores pueden agregar miembros' });
+    }
+
+    // Verificar que no está ya en el grupo
+    const alreadyIn = conversation.participants.find(p => p.userId === targetUserId);
+    if (alreadyIn) {
+      return res.json({ success: true, message: 'El usuario ya es miembro del grupo' });
+    }
+
+    await prisma.conversationParticipant.create({
+      data: { conversationId: id, userId: targetUserId, role: 'MEMBER' }
+    });
+
+    res.json({ success: true, message: 'Miembro agregado exitosamente' });
+  } catch (error) {
+    console.error('AddMember error:', error);
+    res.status(500).json({ success: false, message: 'Error al agregar miembro' });
+  }
+};
+
+/**
+ * DELETE /api/conversations/:id/members/:userId
+ * Elimina un miembro de un grupo
+ */
+const removeMember = async (req, res) => {
+  try {
+    const { id, userId: targetUserId } = req.params;
+    const userId = req.user.id;
+
+    const conversation = await prisma.conversation.findFirst({
+      where: { id, type: 'GROUP' },
+      include: { participants: true }
+    });
+
+    if (!conversation) {
+      return res.status(404).json({ success: false, message: 'Grupo no encontrado' });
+    }
+
+    // Verificar permisos
+    const userParticipant = conversation.participants.find(p => p.userId === userId);
+    if (!userParticipant || (userParticipant.role !== 'ADMIN' && !isAdminRole(req.user.role))) {
+      return res.status(403).json({ success: false, message: 'Solo los administradores pueden eliminar miembros' });
+    }
+
+    // No puede eliminarse a sí mismo
+    if (targetUserId === userId) {
+      return res.status(400).json({ success: false, message: 'No puedes eliminarte a ti mismo del grupo' });
+    }
+
+    await prisma.conversationParticipant.deleteMany({
+      where: { conversationId: id, userId: targetUserId }
+    });
+
+    res.json({ success: true, message: 'Miembro eliminado del grupo' });
+  } catch (error) {
+    console.error('RemoveMember error:', error);
+    res.status(500).json({ success: false, message: 'Error al eliminar miembro' });
+  }
+};
+
 module.exports = {
   getConversations,
   getOrCreateDirect,
   createGroup,
   getConversation,
   addParticipants,
-  markAsRead
+  markAsRead,
+  addMember,
+  removeMember
 };
+

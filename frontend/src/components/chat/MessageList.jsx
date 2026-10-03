@@ -4,11 +4,13 @@ import {
   formatMessageTime, 
   isSameDay, 
   formatFileSize,
-  detectLink 
+  detectLink,
+  isUserMentionedInText,
+  getInitials,
+  getAvatarColor
 } from '../../utils/helpers';
-import { getInitials, getAvatarColor } from '../../utils/helpers';
 
-function MessageBubble({ message, isOwn, showAvatar, showSenderName, onPreviewFile, currentUser }) {
+function MessageBubble({ message, isOwn, showAvatar, showSenderName, onPreviewFile, currentUser, isGroupChat }) {
   const isMentionedMe = !isOwn && currentUser?.username && isUserMentionedInText(message.content, currentUser.username);
 
   const renderContent = () => {
@@ -89,7 +91,7 @@ function MessageBubble({ message, isOwn, showAvatar, showSenderName, onPreviewFi
           ⚠️ Te mencionaron en este mensaje
         </div>
       )}
-      {!isOwn && showSenderName && (
+      {!isOwn && showSenderName && isGroupChat && (
         <div className="message-sender-name">{message.sender?.fullName}</div>
       )}
       {renderContent()}
@@ -116,7 +118,11 @@ function DateSeparator({ date }) {
   return <div className="date-separator">{label}</div>;
 }
 
-export default function MessageList({ messages, currentUserId, currentUser, isLoading, messagesEndRef, onPreviewFile }) {
+export default function MessageList({ messages, currentUserId, currentUser, conversationId, isLoading, messagesEndRef, onPreviewFile }) {
+  const { conversations } = useChatStore();
+  const activeConv = conversations.find(c => c.id === conversationId);
+  const isGroupChat = activeConv?.type === 'GROUP';
+
   if (isLoading && messages.length === 0) {
     return (
       <div className="messages-container" style={{ justifyContent: 'center', alignItems: 'center' }}>
@@ -160,9 +166,10 @@ export default function MessageList({ messages, currentUserId, currentUser, isLo
                 message={message}
                 isOwn={isOwn}
                 showAvatar={showAvatar}
-                showSenderName={showSenderName && messages.find(m => m.conversationId)?.type !== 'DIRECT'}
+                showSenderName={showSenderName}
                 onPreviewFile={onPreviewFile}
                 currentUser={currentUser}
+                isGroupChat={isGroupChat}
               />
             </div>
           </div>
