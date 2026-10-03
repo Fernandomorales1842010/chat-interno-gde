@@ -195,6 +195,24 @@ const createUser = async (req, res) => {
       }
     });
 
+    // Agregar automáticamente al grupo General si existe
+    try {
+      const generalGroup = await prisma.conversation.findFirst({
+        where: { name: '📢 General', isSystem: true }
+      });
+      if (generalGroup) {
+        await prisma.conversationParticipant.create({
+          data: {
+            conversationId: generalGroup.id,
+            userId: user.id,
+            role: 'MEMBER'
+          }
+        });
+      }
+    } catch (gErr) {
+      console.warn('No se pudo agregar nuevo usuario al grupo General:', gErr.message);
+    }
+
     res.status(201).json({ success: true, data: user });
   } catch (error) {
     console.error('CreateUser error:', error);
@@ -256,11 +274,27 @@ const updateUser = async (req, res) => {
  */
 const deleteUser = async (req, res) => {
   try {
-    await prisma.user.delete({ where: { id: req.params.id } });
+    const { id } = req.params;
+
+    if (id === req.user.id) {
+      return res.status(400).json({ success: false, message: 'No puedes eliminar tu propio usuario de administrador' });
+    }
+
+    await prisma.$transaction([
+      // Quitar como líder de equipo si aplica
+      prisma.team.updateMany({ where: { leaderId: id }, data: { leaderId: null } }),
+      // Remover de participantes de conversaciones
+      prisma.conversationParticipant.deleteMany({ where: { userId: id } }),
+      // Remover mensajes enviados por el usuario o mantener (según FK)
+      prisma.message.deleteMany({ where: { senderId: id } }),
+      // Eliminar el registro del usuario
+      prisma.user.delete({ where: { id } })
+    ]);
+
     res.json({ success: true, message: 'Usuario eliminado' });
   } catch (error) {
     console.error('DeleteUser error:', error);
-    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    res.status(500).json({ success: false, message: 'Error al eliminar usuario' });
   }
 };
 
