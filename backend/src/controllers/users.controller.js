@@ -10,7 +10,7 @@ const { canCommunicateWith, Role, isAdminRole } = require('../utils/permissions'
 const getUsers = async (req, res) => {
   try {
     const { role: userRole, id: userId, teamId } = req.user;
-    const { search, role: filterRole } = req.query;
+    const { search, role: filterRole, all } = req.query;
 
     // Si se solicita all=true y el usuario es ADMIN, SUPERVISOR o IT, devolver todos los usuarios sin restricciones de chat
     if (all === 'true' && (userRole === Role.ADMIN || userRole === Role.SUPERVISOR || userRole === Role.IT)) {
