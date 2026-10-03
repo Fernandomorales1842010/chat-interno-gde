@@ -281,13 +281,17 @@ const deleteUser = async (req, res) => {
     }
 
     await prisma.$transaction([
-      // Quitar como líder de equipo si aplica
+      // 1. Quitar como líder de equipo si aplica
       prisma.team.updateMany({ where: { leaderId: id }, data: { leaderId: null } }),
-      // Remover de participantes de conversaciones
-      prisma.conversationParticipant.deleteMany({ where: { userId: id } }),
-      // Remover mensajes enviados por el usuario o mantener (según FK)
+      // 2. Desvincular usuario de su equipo como miembro
+      prisma.user.update({ where: { id }, data: { teamId: null } }),
+      // 3. Eliminar lecturas de mensajes
+      prisma.messageRead.deleteMany({ where: { userId: id } }),
+      // 4. Eliminar mensajes enviados por el usuario
       prisma.message.deleteMany({ where: { senderId: id } }),
-      // Eliminar el registro del usuario
+      // 5. Remover de conversaciones
+      prisma.conversationParticipant.deleteMany({ where: { userId: id } }),
+      // 6. Eliminar el usuario
       prisma.user.delete({ where: { id } })
     ]);
 

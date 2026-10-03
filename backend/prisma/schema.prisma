@@ -60,11 +60,11 @@ model User {
 model Team {
   id          String   @id @default(uuid())
   name        String
-  leaderId    String   @unique
+  leaderId    String?  @unique
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  leader      User     @relation("TeamLeader", fields: [leaderId], references: [id])
+  leader      User?    @relation("TeamLeader", fields: [leaderId], references: [id])
   members     User[]   @relation("TeamMembers")
 }
 
